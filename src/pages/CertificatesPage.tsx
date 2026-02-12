@@ -3,54 +3,55 @@ import GlassCard from '../components/GlassCard'
 import { Link } from 'react-router-dom'
 
 export default function CertificatesPage() {
+    const base = import.meta.env.BASE_URL
     const certificates = [
         {
             title: 'Model Context Protocol: Advanced Topics',
             issuer: 'Anthropic',
             date: 'Jan 2026',
-            image: '/certificates/cert1.png',
+            image: `${base}certificates/cert1.png`,
             description: 'Advanced certification covering Model Context Protocol concepts, architecture, and implementation patterns.'
         },
         {
             title: 'Introduction to Model Context Protocol',
             issuer: 'Anthropic',
             date: 'Jan 2026',
-            image: '/certificates/cert2.png',
+            image: `${base}certificates/cert2.png`,
             description: 'Foundational course on the Model Context Protocol, covering core principles and practical applications.'
         },
         {
             title: 'Artificial Intelligence for Economics',
             issuer: 'NPTEL / IIT Kharagpur',
             date: 'Jul–Sep 2025',
-            image: '/certificates/cert3.png',
+            image: `${base}certificates/cert3.png`,
             description: 'Elite certification with 82% score covering AI applications in economics. 8-week course by IIT Kharagpur via NPTEL.'
         },
         {
             title: 'AWS Cloud Quest: Cloud Practitioner',
             issuer: 'Amazon Web Services (AWS)',
             date: 'Apr 2023',
-            image: '/certificates/cert4.png',
+            image: `${base}certificates/cert4.png`,
             description: 'Hands-on cloud practitioner training covering AWS core services, cloud concepts, and deployment strategies.'
         },
         {
             title: 'Java (Basic)',
             issuer: 'HackerRank',
             date: 'Dec 2023',
-            image: '/certificates/cert5.png',
+            image: `${base}certificates/cert5.png`,
             description: 'Skill assessment certification demonstrating proficiency in Java programming fundamentals.'
         },
         {
             title: 'Play It Safe: Manage Security Risks',
             issuer: 'Google (Coursera)',
             date: 'Feb 2024',
-            image: '/certificates/cert6.png',
+            image: `${base}certificates/cert6.png`,
             description: 'Google Career Certificate course on identifying and managing security risks, threats, and vulnerabilities.'
         },
         {
             title: 'Foundations of Cybersecurity',
             issuer: 'Google (Coursera)',
             date: 'Jan 2024',
-            image: '/certificates/cert7.png',
+            image: `${base}certificates/cert7.png`,
             description: 'Google Career Certificate course covering core cybersecurity concepts, tools, and best practices.'
         },
     ]

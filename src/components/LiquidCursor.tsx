@@ -36,8 +36,8 @@ export default function LiquidCursor() {
         resize()
         window.addEventListener('resize', resize)
 
-        // Very low threshold — triggers with casual-quick movement
-        const SPEED_THRESHOLD = 1.5
+        // Very low threshold — triggers with nearly any movement
+        const SPEED_THRESHOLD = 0.5
         // Dense spawning so blobs overlap & merge into liquid
         const SPAWN_INTERVAL = 5
         let distAccum = 0
