@@ -1,5 +1,5 @@
 import { Suspense } from 'react'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { HashRouter as Router, Routes, Route } from 'react-router-dom'
 import Experience from './components/Experience'
 import Hero from './components/Hero'
 import SocialLinks from './components/SocialLinks'
