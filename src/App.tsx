@@ -1,35 +1,46 @@
-import { Suspense } from 'react'
+import { Suspense, Component, type ReactNode } from 'react'
 import { HashRouter as Router, Routes, Route } from 'react-router-dom'
 import Experience from './components/Experience'
 import Hero from './components/Hero'
 import SocialLinks from './components/SocialLinks'
 import Projects from './components/Projects'
 import LiquidCursor from './components/LiquidCursor'
-// import Certificates from './components/Certificates' // Keeping this for now if we want a preview, or we can remove it. Plan said to verify but maybe remove.
-// Actually, let's keep the home page structure as "Home" and the new one as "CertificatesPage".
 import CertificatesPage from './pages/CertificatesPage'
+
+// Error boundary to catch Three.js/WebGL crashes
+class CanvasErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+    constructor(props: { children: ReactNode }) {
+        super(props)
+        this.state = { hasError: false }
+    }
+    static getDerivedStateFromError() {
+        return { hasError: true }
+    }
+    render() {
+        if (this.state.hasError) {
+            return null
+        }
+        return this.props.children
+    }
+}
 
 function Home() {
     return (
         <div className="relative min-h-screen w-full overflow-x-hidden bg-gray-950 text-white selection:bg-emerald-500/30">
             {/* 3D Background */}
             <div className="fixed inset-0 z-0">
-                <Suspense fallback={null}>
-                    <Experience />
-                </Suspense>
+                <CanvasErrorBoundary>
+                    <Suspense fallback={null}>
+                        <Experience />
+                    </Suspense>
+                </CanvasErrorBoundary>
             </div>
 
             {/* Content Overlay */}
             <div className="relative z-10">
                 <Hero />
                 <Projects />
-                {/* Optional: Certificates Preview or Remove? User asked for redirect. 
-                    I'll keep it for now but maybe the user wants it gone. 
-                    Let's comment it out or keep it? The prompt said "redirecates to certificates page where list of certifcates are visible".
-                    This implies they might NOT be visible here. I will remove the full list from here to avoid duplication.
-                */}
-                {/* <Certificates /> */}
-                <div className="h-24"></div> {/* Bottom spacer */}
+                <div className="h-24"></div>
             </div>
 
             {/* Social Links */}
