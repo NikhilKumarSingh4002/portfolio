@@ -46,7 +46,7 @@ export default function Hero() {
 
                 <div className="flex flex-wrap justify-center gap-4">
                     <GlassCard className="cursor-pointer hover:bg-white/20" delay={0.6}>
-                        <span className="font-semibold text-white">Full Stack Developer</span>
+                        <span className="font-semibold text-white">Java Developer</span>
                     </GlassCard>
                     <GlassCard className="cursor-pointer hover:bg-white/20" delay={0.7}>
                         <span className="font-semibold text-white">Problem Solver</span>

@@ -8,7 +8,7 @@ export default function Projects() {
             title: 'LeetCode Extension',
             description: 'A browser extension to enhance the LeetCode experience with video solutions and better navigation.',
             tags: ['JavaScript', 'Browser Extension', 'DOM Manipulation'],
-            github: 'https://github.com/NikhilKumarSingh4002/LeetCode-Solutions-Extension', // Guessed URL structure or generic profile
+            github: 'https://github.com/NikhilKumarSingh4002/leetcode_extension_youtube',
             demo: null,
             featured: true,
         },
@@ -16,7 +16,7 @@ export default function Projects() {
             title: 'Portfolio Website',
             description: 'The 3D animated portfolio website you are currently viewing.',
             tags: ['React', 'Three.js', 'TailwindCSS'],
-            github: 'https://github.com/NikhilKumarSingh4002',
+            github: 'https://github.com/NikhilKumarSingh4002/portfolio',
             demo: '#',
             featured: false,
         },
