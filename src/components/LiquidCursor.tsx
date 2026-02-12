@@ -62,15 +62,15 @@ export default function LiquidCursor() {
                     const by = e.clientY - dy * t
 
                     // Large, soft blobs that merge together
-                    const sizeScale = Math.min(speed / 8, 2.5)
-                    const maxR = 35 + sizeScale * 25 + Math.random() * 15
+                    const sizeScale = Math.min(speed / 5, 3)
+                    const maxR = 45 + sizeScale * 25 + Math.random() * 15
 
                     blobs.push({
                         x: bx + (Math.random() - 0.5) * 4,
                         y: by + (Math.random() - 0.5) * 4,
                         radius: 0,
                         maxRadius: maxR,
-                        opacity: 0.12 + Math.random() * 0.08, // very subtle glow
+                        opacity: 0.35 + Math.random() * 0.15, // clearly visible glow
                         // Very slow drift — liquid doesn't fly away
                         vx: dx * 0.005 + (Math.random() - 0.5) * 0.3,
                         vy: dy * 0.005 + (Math.random() - 0.5) * 0.3,
