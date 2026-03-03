@@ -6,9 +6,10 @@ type TrailPoint = {
     life: number
 }
 
-const MAX_DPR = 2
-const MAX_POINTS = 26
-const IDLE_MS = 120
+const MAX_DPR = 1.5
+const MAX_POINTS = 20
+const IDLE_MS = 90
+const MIN_EMIT_DISTANCE = 1.5
 
 export default function LiquidCursor() {
     const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -18,6 +19,9 @@ export default function LiquidCursor() {
         if (!canvas) return
 
         if (!window.matchMedia('(pointer: fine)').matches) {
+            return
+        }
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
             return
         }
 
@@ -30,6 +34,8 @@ export default function LiquidCursor() {
         let width = 0
         let height = 0
         let dpr = 1
+        let lastEmitX = 0
+        let lastEmitY = 0
 
         const pointer = {
             x: window.innerWidth * 0.5,
@@ -40,8 +46,8 @@ export default function LiquidCursor() {
         const comet = {
             x: pointer.x,
             y: pointer.y,
-            vx: 0,
-            vy: 0,
+            dx: 1,
+            dy: 0,
         }
 
         const trail: TrailPoint[] = []
@@ -65,11 +71,13 @@ export default function LiquidCursor() {
                 for (let i = 1; i < trail.length; i += 1) {
                     const a = trail[i - 1]
                     const b = trail[i]
-                    const alpha = Math.max(a.life, b.life)
-                    const widthScale = 1 - i / trail.length
+                    const t = i / (trail.length - 1)
+                    const fade = (1 - t) * (1 - t)
+                    const alpha = Math.max(a.life, b.life) * fade * 0.9
+                    const widthScale = 1 - t
 
-                    ctx.strokeStyle = `rgba(34, 211, 238, ${alpha * 0.8})`
-                    ctx.lineWidth = 1.3 + widthScale * 8
+                    ctx.strokeStyle = `rgba(56, 189, 248, ${alpha})`
+                    ctx.lineWidth = 0.8 + widthScale * widthScale * 4.4
                     ctx.lineCap = 'round'
                     ctx.beginPath()
                     ctx.moveTo(a.x, a.y)
@@ -80,17 +88,35 @@ export default function LiquidCursor() {
 
             if (trail.length > 0) {
                 const head = trail[0]
-                const glow = ctx.createRadialGradient(head.x, head.y, 0, head.x, head.y, 22)
-                glow.addColorStop(0, 'rgba(34, 211, 238, 0.95)')
-                glow.addColorStop(1, 'rgba(34, 211, 238, 0)')
+                const angle = Math.atan2(comet.dy, comet.dx)
+                const tailLength = 14 + Math.min(34, trail.length * 1.4)
+
+                // Directional glow behind the head so it reads as a comet.
+                ctx.save()
+                ctx.translate(head.x, head.y)
+                ctx.rotate(angle)
+                const streak = ctx.createLinearGradient(0, 0, -tailLength, 0)
+                streak.addColorStop(0, 'rgba(125, 211, 252, 0.58)')
+                streak.addColorStop(0.45, 'rgba(56, 189, 248, 0.28)')
+                streak.addColorStop(1, 'rgba(56, 189, 248, 0)')
+                ctx.fillStyle = streak
+                ctx.beginPath()
+                ctx.ellipse(-tailLength * 0.45, 0, tailLength * 0.65, 4.6, 0, 0, Math.PI * 2)
+                ctx.fill()
+                ctx.restore()
+
+                const glow = ctx.createRadialGradient(head.x, head.y, 0, head.x, head.y, 9)
+                glow.addColorStop(0, 'rgba(236, 254, 255, 0.95)')
+                glow.addColorStop(0.55, 'rgba(125, 211, 252, 0.45)')
+                glow.addColorStop(1, 'rgba(56, 189, 248, 0)')
                 ctx.fillStyle = glow
                 ctx.beginPath()
-                ctx.arc(head.x, head.y, 22, 0, Math.PI * 2)
+                ctx.arc(head.x, head.y, 9, 0, Math.PI * 2)
                 ctx.fill()
 
                 ctx.fillStyle = 'rgba(236, 254, 255, 0.95)'
                 ctx.beginPath()
-                ctx.arc(head.x, head.y, 4.5, 0, Math.PI * 2)
+                ctx.arc(head.x, head.y, 2.2, 0, Math.PI * 2)
                 ctx.fill()
             }
         }
@@ -100,32 +126,39 @@ export default function LiquidCursor() {
             lastFrameAt = now
             const dt = dtMs / 16.67
 
-            const dx = pointer.x - comet.x
-            const dy = pointer.y - comet.y
-
-            comet.vx += dx * 0.2 * dt
-            comet.vy += dy * 0.2 * dt
-
+            const toTargetX = pointer.x - comet.x
+            const toTargetY = pointer.y - comet.y
             const recentlyMoved = now - lastMovedAt < IDLE_MS
-            const damping = recentlyMoved ? 0.62 : 0.5
-            comet.vx *= damping
-            comet.vy *= damping
+            const follow = recentlyMoved ? Math.min(0.44 * dt, 0.62) : Math.min(0.3 * dt, 0.48)
 
-            comet.x += comet.vx
-            comet.y += comet.vy
+            const prevX = comet.x
+            const prevY = comet.y
+            comet.x += toTargetX * follow
+            comet.y += toTargetY * follow
 
-            const speed = Math.abs(comet.vx) + Math.abs(comet.vy)
-            const shouldEmit = pointer.active && (recentlyMoved || speed > 0.1)
+            const movedX = comet.x - prevX
+            const movedY = comet.y - prevY
+            const speed = Math.hypot(movedX, movedY)
+
+            if (speed > 0.001) {
+                comet.dx = movedX / speed
+                comet.dy = movedY / speed
+            }
+
+            const emitDistance = Math.hypot(comet.x - lastEmitX, comet.y - lastEmitY)
+            const shouldEmit = pointer.active && emitDistance >= MIN_EMIT_DISTANCE && (recentlyMoved || speed > 0.05)
 
             if (shouldEmit) {
                 trail.unshift({ x: comet.x, y: comet.y, life: 1 })
+                lastEmitX = comet.x
+                lastEmitY = comet.y
                 if (trail.length > MAX_POINTS) {
                     trail.length = MAX_POINTS
                 }
             }
 
             for (let i = trail.length - 1; i >= 0; i -= 1) {
-                trail[i].life -= 0.06 * dt
+                trail[i].life -= 0.1 * dt
                 if (trail[i].life <= 0) {
                     trail.splice(i, 1)
                 }
@@ -134,7 +167,7 @@ export default function LiquidCursor() {
             draw()
 
             const isIdle = now - lastMovedAt >= IDLE_MS
-            const shouldStop = isIdle && speed < 0.02 && trail.length === 0
+            const shouldStop = isIdle && speed < 0.015 && trail.length === 0
             if (shouldStop) {
                 frameId = null
                 return
