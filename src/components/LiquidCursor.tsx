@@ -1,17 +1,14 @@
 import { useEffect, useRef } from 'react'
 
-interface LiquidBlob {
+type TrailPoint = {
     x: number
     y: number
-    radius: number
-    maxRadius: number
-    opacity: number
-    vx: number
-    vy: number
-    born: number
     life: number
-    hue: number
 }
+
+const MAX_DPR = 2
+const MAX_POINTS = 26
+const IDLE_MS = 120
 
 export default function LiquidCursor() {
     const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -20,142 +17,164 @@ export default function LiquidCursor() {
         const canvas = canvasRef.current
         if (!canvas) return
 
+        if (!window.matchMedia('(pointer: fine)').matches) {
+            return
+        }
+
         const ctx = canvas.getContext('2d')
         if (!ctx) return
 
-        let animId: number
-        let blobs: LiquidBlob[] = []
-        let lastX = 0
-        let lastY = 0
-        let lastTime = 0
+        let frameId: number | null = null
+        let lastFrameAt = 0
+        let lastMovedAt = 0
+        let width = 0
+        let height = 0
+        let dpr = 1
+
+        const pointer = {
+            x: window.innerWidth * 0.5,
+            y: window.innerHeight * 0.5,
+            active: false,
+        }
+
+        const comet = {
+            x: pointer.x,
+            y: pointer.y,
+            vx: 0,
+            vy: 0,
+        }
+
+        const trail: TrailPoint[] = []
 
         const resize = () => {
-            canvas.width = window.innerWidth
-            canvas.height = window.innerHeight
+            dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR)
+            width = window.innerWidth
+            height = window.innerHeight
+
+            canvas.width = Math.floor(width * dpr)
+            canvas.height = Math.floor(height * dpr)
+            canvas.style.width = `${width}px`
+            canvas.style.height = `${height}px`
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
         }
-        resize()
-        window.addEventListener('resize', resize)
-
-        // Very low threshold — triggers with nearly any movement
-        const SPEED_THRESHOLD = 0.5
-        // Dense spawning so blobs overlap & merge into liquid
-        const SPAWN_INTERVAL = 5
-        let distAccum = 0
-
-        const handleMouseMove = (e: MouseEvent) => {
-            const now = performance.now()
-            const dx = e.clientX - lastX
-            const dy = e.clientY - lastY
-            const dist = Math.sqrt(dx * dx + dy * dy)
-            const dt = now - lastTime || 16
-
-            const speed = dist / (dt / 16)
-
-            if (speed > SPEED_THRESHOLD) {
-                distAccum += dist
-
-                while (distAccum >= SPAWN_INTERVAL) {
-                    distAccum -= SPAWN_INTERVAL
-
-                    const t = distAccum / (dist || 1)
-                    const bx = e.clientX - dx * t
-                    const by = e.clientY - dy * t
-
-                    // Large, soft blobs that merge together
-                    const sizeScale = Math.min(speed / 5, 3)
-                    const maxR = 45 + sizeScale * 25 + Math.random() * 15
-
-                    blobs.push({
-                        x: bx + (Math.random() - 0.5) * 4,
-                        y: by + (Math.random() - 0.5) * 4,
-                        radius: 0,
-                        maxRadius: maxR,
-                        opacity: 0.35 + Math.random() * 0.15, // clearly visible glow
-                        // Very slow drift — liquid doesn't fly away
-                        vx: dx * 0.005 + (Math.random() - 0.5) * 0.3,
-                        vy: dy * 0.005 + (Math.random() - 0.5) * 0.3,
-                        born: now,
-                        life: 900 + Math.random() * 500,
-                        hue: 200 + Math.random() * 40, // deep blue-cyan range
-                    })
-                }
-            } else {
-                distAccum = 0
-            }
-
-            lastX = e.clientX
-            lastY = e.clientY
-            lastTime = now
-        }
-
-        window.addEventListener('mousemove', handleMouseMove)
 
         const draw = () => {
-            const now = performance.now()
-            ctx.clearRect(0, 0, canvas.width, canvas.height)
+            ctx.clearRect(0, 0, width, height)
 
-            // Lighter blend so blobs merge with each other softly
-            ctx.globalCompositeOperation = 'lighter'
+            if (trail.length > 1) {
+                for (let i = 1; i < trail.length; i += 1) {
+                    const a = trail[i - 1]
+                    const b = trail[i]
+                    const alpha = Math.max(a.life, b.life)
+                    const widthScale = 1 - i / trail.length
 
-            blobs = blobs.filter((b) => {
-                const age = now - b.born
-                if (age > b.life) return false
-
-                const progress = age / b.life
-
-                // Slow expansion, then very gradual shrink — like liquid settling
-                if (progress < 0.35) {
-                    // Ease-out expansion
-                    const t = progress / 0.35
-                    b.radius = b.maxRadius * (1 - (1 - t) * (1 - t))
-                } else {
-                    // Slow shrink
-                    const t = (progress - 0.35) / 0.65
-                    b.radius = b.maxRadius * (1 - t * t)
+                    ctx.strokeStyle = `rgba(34, 211, 238, ${alpha * 0.8})`
+                    ctx.lineWidth = 1.3 + widthScale * 8
+                    ctx.lineCap = 'round'
+                    ctx.beginPath()
+                    ctx.moveTo(a.x, a.y)
+                    ctx.lineTo(b.x, b.y)
+                    ctx.stroke()
                 }
+            }
 
-                // Gentle fade throughout
-                const fadeOpacity =
-                    progress < 0.3
-                        ? b.opacity * (progress / 0.3) // fade in
-                        : b.opacity * (1 - (progress - 0.3) / 0.7) // fade out
-
-                // Very slow drift — liquid pools in place
-                b.x += b.vx
-                b.y += b.vy
-                b.vx *= 0.985
-                b.vy *= 0.985
-
-                if (b.radius <= 1) return false
-
-                // Large, soft radial gradient — looks like liquid
-                const grad = ctx.createRadialGradient(
-                    b.x, b.y, 0,
-                    b.x, b.y, b.radius
-                )
-                grad.addColorStop(0, `hsla(${b.hue}, 60%, 45%, ${fadeOpacity})`)
-                grad.addColorStop(0.3, `hsla(${b.hue}, 55%, 35%, ${fadeOpacity * 0.7})`)
-                grad.addColorStop(0.6, `hsla(${b.hue}, 50%, 25%, ${fadeOpacity * 0.35})`)
-                grad.addColorStop(1, `hsla(${b.hue}, 45%, 20%, 0)`)
-
+            if (trail.length > 0) {
+                const head = trail[0]
+                const glow = ctx.createRadialGradient(head.x, head.y, 0, head.x, head.y, 22)
+                glow.addColorStop(0, 'rgba(34, 211, 238, 0.95)')
+                glow.addColorStop(1, 'rgba(34, 211, 238, 0)')
+                ctx.fillStyle = glow
                 ctx.beginPath()
-                ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2)
-                ctx.fillStyle = grad
+                ctx.arc(head.x, head.y, 22, 0, Math.PI * 2)
                 ctx.fill()
 
-                return true
-            })
-
-            ctx.globalCompositeOperation = 'source-over'
-            animId = requestAnimationFrame(draw)
+                ctx.fillStyle = 'rgba(236, 254, 255, 0.95)'
+                ctx.beginPath()
+                ctx.arc(head.x, head.y, 4.5, 0, Math.PI * 2)
+                ctx.fill()
+            }
         }
 
-        animId = requestAnimationFrame(draw)
+        const tick = (now: number) => {
+            const dtMs = lastFrameAt > 0 ? Math.min(now - lastFrameAt, 32) : 16
+            lastFrameAt = now
+            const dt = dtMs / 16.67
+
+            const dx = pointer.x - comet.x
+            const dy = pointer.y - comet.y
+
+            comet.vx += dx * 0.2 * dt
+            comet.vy += dy * 0.2 * dt
+
+            const recentlyMoved = now - lastMovedAt < IDLE_MS
+            const damping = recentlyMoved ? 0.62 : 0.5
+            comet.vx *= damping
+            comet.vy *= damping
+
+            comet.x += comet.vx
+            comet.y += comet.vy
+
+            const speed = Math.abs(comet.vx) + Math.abs(comet.vy)
+            const shouldEmit = pointer.active && (recentlyMoved || speed > 0.1)
+
+            if (shouldEmit) {
+                trail.unshift({ x: comet.x, y: comet.y, life: 1 })
+                if (trail.length > MAX_POINTS) {
+                    trail.length = MAX_POINTS
+                }
+            }
+
+            for (let i = trail.length - 1; i >= 0; i -= 1) {
+                trail[i].life -= 0.06 * dt
+                if (trail[i].life <= 0) {
+                    trail.splice(i, 1)
+                }
+            }
+
+            draw()
+
+            const isIdle = now - lastMovedAt >= IDLE_MS
+            const shouldStop = isIdle && speed < 0.02 && trail.length === 0
+            if (shouldStop) {
+                frameId = null
+                return
+            }
+
+            frameId = window.requestAnimationFrame(tick)
+        }
+
+        const ensureLoop = () => {
+            if (frameId !== null) return
+            lastFrameAt = 0
+            frameId = window.requestAnimationFrame(tick)
+        }
+
+        const handlePointerMove = (e: PointerEvent) => {
+            pointer.x = e.clientX
+            pointer.y = e.clientY
+            pointer.active = true
+            lastMovedAt = performance.now()
+            ensureLoop()
+        }
+
+        const handlePointerLeave = () => {
+            pointer.active = false
+            lastMovedAt = performance.now()
+            ensureLoop()
+        }
+
+        resize()
+        window.addEventListener('resize', resize, { passive: true })
+        window.addEventListener('pointermove', handlePointerMove, { passive: true })
+        window.addEventListener('pointerleave', handlePointerLeave)
 
         return () => {
-            cancelAnimationFrame(animId)
+            if (frameId !== null) {
+                window.cancelAnimationFrame(frameId)
+            }
             window.removeEventListener('resize', resize)
-            window.removeEventListener('mousemove', handleMouseMove)
+            window.removeEventListener('pointermove', handlePointerMove)
+            window.removeEventListener('pointerleave', handlePointerLeave)
         }
     }, [])
 
